@@ -6,7 +6,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.exceptions import ResourceNotFoundError
 from src.data.repositories.hall_repository import HallRepository
-from src.schemas.hall_schema import HallCreate, HallOut, HallUpdate
+from src.schemas.hall_schema import (
+    HallCreate,
+    HallFacilityCreate,
+    HallFacilityUpdate,
+    HallOut,
+    HallRead,
+    HallUpdate,
+)
 
 
 class HallService:
@@ -24,17 +31,17 @@ class HallService:
         await self.db_session.commit()
         return HallOut.model_validate(hall)
 
-    async def get_hall(self, hall_id: UUID) -> HallOut:
+    async def get_hall(self, hall_id: UUID) -> HallRead:
         """Get a hall by ID."""
-        hall = await self.repository.get_by_id(hall_id)
+        hall = await self.repository.get_by_id_with_facilities(hall_id)
         if not hall:
             raise ResourceNotFoundError(f"Hall with ID {hall_id} not found")
-        return HallOut.model_validate(hall)
+        return HallRead.model_validate(hall)
 
-    async def list_halls(self) -> list[HallOut]:
+    async def list_halls(self) -> list[HallRead]:
         """List all halls."""
-        halls = await self.repository.list_all()
-        return [HallOut.model_validate(hall) for hall in halls]
+        halls = await self.repository.list_all_with_facilities()
+        return [HallRead.model_validate(hall) for hall in halls]
 
     async def update_hall(self, hall_id: UUID, hall_update: HallUpdate) -> HallOut:
         """Update a hall."""
@@ -60,3 +67,22 @@ class HallService:
 
         await self.repository.delete(hall)
         await self.db_session.commit()
+
+    async def add_facility_to_hall(self, facility_in: HallFacilityCreate) -> dict[str, str]:
+        """Add a facility to a hall."""
+        facility = await self.repository.add_facility_to_hall(
+            facility_in.facility_name,
+            facility_in.hall_name,
+        )
+        await self.db_session.commit()
+        return facility
+
+    async def update_hall_facility(self, facility_update: HallFacilityUpdate) -> dict[str, str]:
+        """Update a hall facility's active status."""
+        facility = await self.repository.update_hall_facility(
+            facility_update.hall_name,
+            facility_update.facility_name,
+            facility_update.is_active,
+        )
+        await self.db_session.commit()
+        return facility

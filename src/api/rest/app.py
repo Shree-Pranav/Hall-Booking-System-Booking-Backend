@@ -10,6 +10,8 @@ from src.config.settings import settings
 from src.data.clients.postgres_client import get_or_create_engine
 from src.api.rest.routes.health import router as health_router
 from src.api.rest.routes.hall import router as hall_router
+from src.api.rest.routes.facility import router as facility_router
+from src.api.rest.routes.favorite import router as favorite_router
 
 
 @asynccontextmanager
@@ -50,3 +52,5 @@ async def root():
 
 app.include_router(health_router)
 app.include_router(hall_router)
+app.include_router(facility_router)
+app.include_router(favorite_router)

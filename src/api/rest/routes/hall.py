@@ -11,7 +11,15 @@ from src.api.rest.dependencies import (
     TokenData,
 )
 from src.core.services.hall_service import HallService
-from src.schemas.hall_schema import HallCreate, HallOut, HallUpdate, HallListOut
+from src.schemas.hall_schema import (
+    HallCreate,
+    HallFacilityCreate,
+    HallFacilityUpdate,
+    HallListOut,
+    HallOut,
+    HallRead,
+    HallUpdate,
+)
 
 
 router = APIRouter(prefix="/halls", tags=["halls"])
@@ -28,12 +36,34 @@ async def add_hall(
     return await service.create_hall(hall_in)
 
 
-@router.get("/{hall_id}", response_model=HallOut)
+@router.post("/add_facility", status_code=status.HTTP_201_CREATED)
+async def add_facility_to_hall(
+    facility_in: HallFacilityCreate,
+    token_data: Annotated[TokenData, Depends(verify_admin_role)],
+    db_session: Annotated[AsyncSession, Depends(db_session_dependency)],
+) -> dict[str, str]:
+    """Add a facility to a hall (admin only)."""
+    service = HallService(db_session)
+    return await service.add_facility_to_hall(facility_in)
+
+
+@router.patch("/facilities", status_code=status.HTTP_200_OK)
+async def modify_hall_facility(
+    facility_update: HallFacilityUpdate,
+    token_data: Annotated[TokenData, Depends(verify_admin_role)],
+    db_session: Annotated[AsyncSession, Depends(db_session_dependency)],
+) -> dict[str, str]:
+    """Activate or deactivate a hall facility (admin only)."""
+    service = HallService(db_session)
+    return await service.update_hall_facility(facility_update)
+
+
+@router.get("/{hall_id}", response_model=HallRead)
 async def view_hall(
     hall_id: UUID,
     token_data: Annotated[TokenData, Depends(verify_token)],
     db_session: Annotated[AsyncSession, Depends(db_session_dependency)],
-) -> HallOut:
+) -> HallRead:
     """View a specific hall (users and admins)."""
     service = HallService(db_session)
     return await service.get_hall(hall_id)
