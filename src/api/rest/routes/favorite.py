@@ -1,0 +1,34 @@
+from __future__ import annotations
+
+from typing import Annotated
+from fastapi import APIRouter, Depends, status
+from fastapi import Query
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from src.api.rest.dependencies import TokenData, db_session_dependency, verify_token
+from src.core.services.favorite_service import FavoriteService
+
+
+router = APIRouter(prefix="/favorites", tags=["favorites"])
+
+
+@router.post("/add/", status_code=status.HTTP_201_CREATED)
+async def add_favorite_hall(
+    hall_name: Annotated[str, Query(min_length=1)],
+    token_data: Annotated[TokenData, Depends(verify_token)],
+    db_session: Annotated[AsyncSession, Depends(db_session_dependency)],
+) -> dict[str, str]:
+    """Add a hall to the authenticated user's favorites."""
+    service = FavoriteService(db_session)
+    return await service.add_favorite_hall(token_data.user_id, hall_name)
+
+
+@router.delete("/remove/", status_code=status.HTTP_204_NO_CONTENT)
+async def remove_favorite_hall(
+    hall_name: Annotated[str, Query(min_length=1)],
+    token_data: Annotated[TokenData, Depends(verify_token)],
+    db_session: Annotated[AsyncSession, Depends(db_session_dependency)],
+) -> None:
+    """Remove a hall from the authenticated user's favorites."""
+    service = FavoriteService(db_session)
+    await service.remove_favorite_hall(token_data.user_id, hall_name)
