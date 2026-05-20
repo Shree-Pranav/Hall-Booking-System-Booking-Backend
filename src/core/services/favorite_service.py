@@ -12,6 +12,9 @@ class FavoriteService:
         self.repository = FavoriteRepository(db_session)
         self.db_session = db_session
 
+    async def list_favorite_halls(self, user_id: UUID) -> list[dict[str, str]]:
+        return await self.repository.list_for_user(user_id)
+
     async def add_favorite_hall(self, user_id: UUID, hall_name: str) -> dict[str, str]:
         await self.repository.add(user_id, hall_name)
         await self.db_session.commit()

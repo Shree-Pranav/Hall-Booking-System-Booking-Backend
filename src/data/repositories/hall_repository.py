@@ -10,7 +10,6 @@ from src.core.exceptions import ResourceNotFoundError
 from src.data.models.postgres.hall import Hall
 from src.data.models.postgres.hall_facility import HallFacility
 from src.data.models.postgres.facility import Facility
-from sqlalchemy.orm import selectinload
 
 class HallRepository:
     def __init__(self, db_session: AsyncSession) -> None:

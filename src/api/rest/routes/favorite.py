@@ -23,6 +23,16 @@ async def add_favorite_hall(
     return await service.add_favorite_hall(token_data.user_id, hall_name)
 
 
+@router.get("/me", status_code=status.HTTP_200_OK)
+async def get_my_favorite_halls(
+    token_data: Annotated[TokenData, Depends(verify_token)],
+    db_session: Annotated[AsyncSession, Depends(db_session_dependency)],
+) -> list[dict[str, str]]:
+    """Return the authenticated user's favorite halls."""
+    service = FavoriteService(db_session)
+    return await service.list_favorite_halls(token_data.user_id)
+
+
 @router.delete("/remove/", status_code=status.HTTP_204_NO_CONTENT)
 async def remove_favorite_hall(
     hall_name: Annotated[str, Query(min_length=1)],

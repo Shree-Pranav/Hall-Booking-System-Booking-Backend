@@ -22,4 +22,3 @@ class FacilityService:
         """List all facilities."""
         facilities = await self.repository.list_all()
         return [FacilitySummary(id=facility.id, name=facility.name) for facility in facilities]
-    

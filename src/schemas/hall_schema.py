@@ -31,9 +31,9 @@ class HallOut(BaseModel):
     model_config = {"from_attributes": True}
 
 class FacilitySummary(BaseModel):
-    id: int
+    id: UUID
     name: str
-
+model_config = {"from_attributes": True}
 
 
 class HallListOut(BaseModel):

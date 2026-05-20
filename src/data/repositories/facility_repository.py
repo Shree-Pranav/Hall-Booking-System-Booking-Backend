@@ -28,3 +28,4 @@ class FacilityRepository:
     async def list_all(self) -> list[Facility]:
         result = await self.db_session.execute(select(Facility).order_by(Facility.created_at.desc()))
         return list(result.scalars().all())
+    
