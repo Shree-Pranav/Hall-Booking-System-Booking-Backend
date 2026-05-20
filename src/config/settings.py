@@ -1,5 +1,7 @@
 from functools import lru_cache
+from secrets import token_urlsafe
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -13,9 +15,9 @@ class Settings(BaseSettings):
     DB_PASSWORD: str
     DB_NAME: str
 
-    DATABASE_URL: str | None = None
+    DATABASE_URL: str
 
-    SECRET_KEY: str = "your_secret_key"
+    SECRET_KEY: str = token_urlsafe(32)
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
 
@@ -24,31 +26,41 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env",
         case_sensitive=True,
-        extra="ignore"
+        extra="ignore",
     )
+
+    @model_validator(mode="after")
+    def build_database_url(self) -> "Settings":
+        """
+        Automatically construct DATABASE_URL if:
+        - it is missing
+        - OR it incorrectly points to localhost while DB_HOST is something else
+        """
+
+        rebuild = False
+
+        if not self.DATABASE_URL:
+            rebuild = True
+        else:
+            lower_db_url = self.DATABASE_URL.lower()
+
+            if (
+                ("localhost" in lower_db_url or "127.0.0.1" in lower_db_url)
+                and self.DB_HOST not in ("localhost", "127.0.0.1")
+            ):
+                rebuild = True
+
+        if rebuild:
+            self.DATABASE_URL = (
+                f"postgresql+asyncpg://"
+                f"{self.DB_USER}:{self.DB_PASSWORD}"
+                f"@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
+            )
+        return self
 
 
 @lru_cache
 def get_settings() -> Settings:
-    s = Settings()
-
-    rebuild = False
-    if not s.DATABASE_URL:
-        rebuild = True
-    else:
-        lower_db_url = s.DATABASE_URL.lower()
-        if ("localhost" in lower_db_url or "127.0.0.1" in lower_db_url) and s.DB_HOST and s.DB_HOST not in (
-            "localhost",
-            "127.0.0.1",
-        ):
-            rebuild = True
-
-    if rebuild:
-        s.DATABASE_URL = (
-            f"postgresql+asyncpg://{s.DB_USER}:{s.DB_PASSWORD}@{s.DB_HOST}:{s.DB_PORT}/{s.DB_NAME}"
-        )
-
-    return s
-
+    return Settings()
 
 settings = get_settings()

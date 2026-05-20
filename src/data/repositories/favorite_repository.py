@@ -15,6 +15,15 @@ class FavoriteRepository:
     def __init__(self, db_session: AsyncSession) -> None:
         self.db_session = db_session
 
+    async def list_for_user(self, user_id: UUID) -> list[dict[str, str]]:
+        result = await self.db_session.execute(
+            select(Hall.id, Hall.name)
+            .join(Favorite, Favorite.hall_id == Hall.id)
+            .where(Favorite.user_id == user_id)
+            .order_by(Hall.name)
+        )
+        return [{"id": str(hall_id), "name": hall_name} for hall_id, hall_name in result.all()]
+
     async def add(self, user_id: UUID, hall_name: str) -> Favorite:
         hall_result = await self.db_session.execute(select(Hall).where(Hall.name == hall_name))
         hall = hall_result.scalar_one_or_none()
@@ -27,6 +36,8 @@ class FavoriteRepository:
                 Favorite.hall_id == hall.id,
             )
         )
+        if existing_result.scalar_one_or_none():
+            raise ResourceNotFoundError(f"Hall with name {hall_name} is already in favorites for user")
         favorite = existing_result.scalar_one_or_none()
         if favorite is None:
             favorite = Favorite(user_id=user_id, hall_id=hall.id)
@@ -47,8 +58,8 @@ class FavoriteRepository:
                 Favorite.user_id == user_id,
                 Favorite.hall_id == hall.id,
             )
-        )   
-                
+        )
+
         favorite = result.scalar_one_or_none()
         if not favorite:
             raise ResourceNotFoundError(f"Favorite hall with name {hall_name} not found for user")
