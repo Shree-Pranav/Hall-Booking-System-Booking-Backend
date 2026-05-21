@@ -1,5 +1,4 @@
 from functools import lru_cache
-from secrets import token_urlsafe
 
 from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -17,7 +16,7 @@ class Settings(BaseSettings):
 
     DATABASE_URL: str
 
-    SECRET_KEY: str = token_urlsafe(32)
+    SECRET_KEY: str = "7Yw4gC1fQp2zLk9XvN8mRsT6uHaJd3BeW0nPy5EtUi"
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
 

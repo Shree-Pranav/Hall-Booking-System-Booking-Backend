@@ -9,6 +9,6 @@ class FacilityCreate(BaseModel):
 
 
 class FacilitySummary(BaseModel):
-    id: UUID
+    id: int
     name: str
 

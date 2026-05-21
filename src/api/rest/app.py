@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from sqlalchemy.ext.asyncio import AsyncSession
+
 
 from src.core.exceptions import BaseAppException
 from src.config.settings import settings
@@ -13,6 +13,8 @@ from src.api.rest.routes.hall import router as hall_router
 from src.api.rest.routes.facility import router as facility_router
 from src.api.rest.routes.favorite import router as favorite_router
 from src.api.rest.routes.booking import router as booking_router
+from src.api.rest.routes.search import router as search_router
+
 
 
 @asynccontextmanager
@@ -56,3 +58,4 @@ app.include_router(hall_router)
 app.include_router(facility_router)
 app.include_router(favorite_router)
 app.include_router(booking_router)
+app.include_router(search_router)
