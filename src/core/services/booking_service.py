@@ -50,7 +50,10 @@ class BookingService:
         user_id = self._get_user_id(current_user)
 
 
-        return await self.booking_repository.get_bookings_by_user_id(user_id)
+        return await self.booking_repository.get_bookings_by_user_id(
+            user_id,
+            include_cancelled=False,
+        )
 
 
     async def get_all_bookings(self, current_user: dict):
@@ -62,7 +65,10 @@ class BookingService:
         current_user: dict,
         user_id: UUID,
     ):
-        return await self.booking_repository.get_bookings_by_user_id(user_id)
+        return await self.booking_repository.get_bookings_by_user_id(
+            user_id,
+            include_cancelled=True,
+        )
 
 
     async def cancel_booking(
@@ -101,6 +107,30 @@ class BookingService:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Start time must be before end time",
+            )
+
+        self._validate_half_hour_increment(start_datetime)
+        self._validate_half_hour_increment(end_datetime)
+        self._validate_not_in_past(start_datetime)
+
+
+    def _validate_half_hour_increment(self, value: datetime):
+        if value.minute not in (0, 30) or value.second != 0 or value.microsecond != 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Bookings can only start and end on the hour or half hour",
+            )
+
+
+    def _current_utc_naive(self) -> datetime:
+        return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
+    def _validate_not_in_past(self, value: datetime):
+        if value < self._current_utc_naive():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Bookings cannot start in the past",
             )
 
 

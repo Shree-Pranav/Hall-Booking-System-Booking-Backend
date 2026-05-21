@@ -1,4 +1,6 @@
 from datetime import datetime
+from datetime import timedelta
+from datetime import timezone
 from uuid import UUID
 
 
@@ -29,6 +31,31 @@ class SearchService:
             )
 
 
+    def _validate_half_hour_increment(self, value: datetime):
+        if value.minute not in (0, 30) or value.second != 0 or value.microsecond != 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Search times must start and end on the hour or half hour",
+            )
+
+
+    def _current_bookable_start(self) -> datetime:
+        raw_now = datetime.now(timezone.utc)
+        now = raw_now.replace(tzinfo=None, second=0, microsecond=0)
+        minute_offset = now.minute % 30
+        if minute_offset or raw_now.second or raw_now.microsecond:
+            now += timedelta(minutes=30 - minute_offset)
+
+        return now
+
+
+    def _normalize_datetime(self, value: datetime) -> datetime:
+        if value.tzinfo is None:
+            return value
+
+        return value.astimezone(timezone.utc).replace(tzinfo=None)
+
+
     async def search_available_halls(
         self,
         search_start: datetime,
@@ -41,6 +68,16 @@ class SearchService:
         """
         Search for available hall slots based on filters.
         """
+        search_start = self._normalize_datetime(search_start)
+        search_end = self._normalize_datetime(search_end)
+        self._validate_half_hour_increment(search_end)
+
+        current_bookable_start = self._current_bookable_start()
+        if search_start < current_bookable_start:
+            search_start = current_bookable_start
+        else:
+            self._validate_half_hour_increment(search_start)
+
         # Validate datetime range
         self._validate_datetime_range(search_start, search_end)
 

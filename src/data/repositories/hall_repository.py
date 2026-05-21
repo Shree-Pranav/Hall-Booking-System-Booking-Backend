@@ -51,11 +51,20 @@ class HallRepository:
         return result.scalar_one_or_none()
 
     async def get_by_name(self, name: str) -> Hall | None:
-        result = await self.db_session.execute(select(Hall).where(Hall.name == name))
+        result = await self.db_session.execute(
+            select(Hall).where(
+                Hall.name == name,
+                Hall.is_active.is_(True),
+            )
+        )
         return result.scalar_one_or_none()
 
     async def list_all(self) -> list[Hall]:
-        result = await self.db_session.execute(select(Hall).order_by(Hall.created_at.desc()))
+        result = await self.db_session.execute(
+            select(Hall)
+            .where(Hall.is_active.is_(True))
+            .order_by(Hall.created_at.desc())
+        )
         return list(result.scalars().all())
 
     async def list_all_with_facilities(self) -> list[dict]:
@@ -63,6 +72,7 @@ class HallRepository:
             select(Hall, HallFacility, Facility)
             .outerjoin(HallFacility, Hall.id == HallFacility.hall_id)
             .outerjoin(Facility, Facility.id == HallFacility.facility_id)
+            .where(Hall.is_active.is_(True))
             .order_by(Hall.created_at.desc(), Facility.name)
         )
 
@@ -139,7 +149,7 @@ class HallRepository:
         return hall
 
     async def delete(self, hall: Hall) -> None:
-        await self.db_session.delete(hall)
+        hall.is_active = False
         await self.db_session.flush()
 
     async def add_facility_to_hall(self, facility_name: str, hall_name: str) -> dict[str, str]:
