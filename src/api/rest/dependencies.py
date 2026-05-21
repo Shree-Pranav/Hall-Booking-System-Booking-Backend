@@ -7,19 +7,26 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.config.settings import settings
 from src.core.exceptions import InvalidTokenException, UnauthorizedException
 from src.data.clients.postgres_client import get_db_session
+from src.observability.logging.logger import get_logger
 from src.schemas.token_schema import TokenData  
 
 
+logger = get_logger(__name__)
+
 
 async def db_session_dependency() -> AsyncGenerator[AsyncSession, None]:
+    logger.info("Entering db_session_dependency")
     async for session in get_db_session():
+        logger.info("db_session_dependency yielded session")
         yield session
+    logger.info("Exiting db_session_dependency")
 
 
 async def verify_token(
     access_token: str | None = Cookie(default=None, alias="access_token"),
 ) -> TokenData:
     """Verify token sent by the browser cookie."""
+    logger.info("Entering verify_token")
     if not access_token:
         raise InvalidTokenException("Missing access token cookie")
 
@@ -42,17 +49,25 @@ async def verify_token(
     except (JWTError, ValueError) as e:
         raise InvalidTokenException(f"Invalid token: {str(e)}")
 
+    logger.info("verify_token completed")
+    logger.info("Exiting verify_token")
     return token_data
 
 
 async def verify_admin_role(token_data: Annotated[TokenData, Depends(verify_token)]) -> TokenData:
     """Verify that the user has admin role."""
+    logger.info("Entering verify_admin_role")
     if token_data.role != "admin":
         raise UnauthorizedException("Admin role required")
+    logger.info("verify_admin_role completed")
+    logger.info("Exiting verify_admin_role")
     return token_data
 
 async def get_current_user(token_data: Annotated[TokenData, Depends(verify_token)]) -> dict:
     """Get current user info from token data."""
+    logger.info("Entering get_current_user")
+    logger.info("get_current_user completed")
+    logger.info("Exiting get_current_user")
     return {
         "user_id": token_data.user_id,
         "role": token_data.role,
@@ -63,6 +78,9 @@ async def get_current_admin_user(
     token_data: Annotated[TokenData, Depends(verify_admin_role)]
 ) -> dict:
     """Get current admin user info from token data."""
+    logger.info("Entering get_current_admin_user")
+    logger.info("get_current_admin_user completed")
+    logger.info("Exiting get_current_admin_user")
     return {
         "user_id": token_data.user_id,
         "role": token_data.role,

@@ -7,12 +7,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.rest.dependencies import TokenData, db_session_dependency, verify_token
 from src.core.services.favorite_service import FavoriteService
+from src.observability.logging.logger import get_logger, log_function
 
 
 router = APIRouter(prefix="/favorites", tags=["favorites"])
+logger = get_logger(__name__)
 
 
 @router.post("/add/", status_code=status.HTTP_201_CREATED)
+@log_function(logger)
 async def add_favorite_hall(
     hall_name: Annotated[str, Query(min_length=1)],
     token_data: Annotated[TokenData, Depends(verify_token)],
@@ -24,6 +27,7 @@ async def add_favorite_hall(
 
 
 @router.get("/me", status_code=status.HTTP_200_OK)
+@log_function(logger)
 async def get_my_favorite_halls(
     token_data: Annotated[TokenData, Depends(verify_token)],
     db_session: Annotated[AsyncSession, Depends(db_session_dependency)],
@@ -34,6 +38,7 @@ async def get_my_favorite_halls(
 
 
 @router.delete("/remove/", status_code=status.HTTP_204_NO_CONTENT)
+@log_function(logger)
 async def remove_favorite_hall(
     hall_name: Annotated[str, Query(min_length=1)],
     token_data: Annotated[TokenData, Depends(verify_token)],

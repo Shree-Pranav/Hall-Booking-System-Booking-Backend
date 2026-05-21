@@ -9,7 +9,10 @@ from src.core.exceptions import ResourceNotFoundError
 from src.data.models.postgres.hall import Hall
 from src.data.models.postgres.hall_facility import HallFacility
 from src.data.models.postgres.facility import Facility
+from src.observability.logging.logger import instrument_class_methods
 
+
+@instrument_class_methods
 class HallRepository:
     def __init__(self, db_session: AsyncSession) -> None:
         self.db_session = db_session

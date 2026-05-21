@@ -5,8 +5,11 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.data.repositories.facility_repository import FacilityRepository
+from src.observability.logging.logger import instrument_class_methods
 from src.schemas.facility_schema import FacilityCreate, FacilitySummary
 
+
+@instrument_class_methods
 class FacilityService:
     def __init__(self, db_session: AsyncSession) -> None:
         self.repository = FacilityRepository(db_session)

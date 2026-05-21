@@ -11,6 +11,7 @@ from src.api.rest.dependencies import (
     TokenData,
 )
 from src.core.services.hall_service import HallService
+from src.observability.logging.logger import get_logger, log_function
 from src.schemas.hall_schema import (
     HallCreate,
     HallFacilityCreate,
@@ -23,9 +24,11 @@ from src.schemas.hall_schema import (
 
 
 router = APIRouter(prefix="/halls", tags=["halls"])
+logger = get_logger(__name__)
 
 
 @router.post("", response_model=HallOut, status_code=status.HTTP_201_CREATED)
+@log_function(logger)
 async def add_hall(
     hall_in: HallCreate,
     token_data: Annotated[TokenData, Depends(verify_admin_role)],
@@ -37,6 +40,7 @@ async def add_hall(
 
 
 @router.post("/add_facility", status_code=status.HTTP_201_CREATED)
+@log_function(logger)
 async def add_facility_to_hall(
     facility_in: HallFacilityCreate,
     token_data: Annotated[TokenData, Depends(verify_admin_role)],
@@ -48,6 +52,7 @@ async def add_facility_to_hall(
 
 
 @router.patch("/facilities", status_code=status.HTTP_200_OK)
+@log_function(logger)
 async def modify_hall_facility(
     facility_update: HallFacilityUpdate,
     token_data: Annotated[TokenData, Depends(verify_admin_role)],
@@ -59,6 +64,7 @@ async def modify_hall_facility(
 
 
 @router.get("/{hall_id}", response_model=HallRead)
+@log_function(logger)
 async def view_hall(
     hall_id: UUID,
     token_data: Annotated[TokenData, Depends(verify_token)],
@@ -70,6 +76,7 @@ async def view_hall(
 
 
 @router.get("", response_model=HallListOut)
+@log_function(logger)
 async def view_halls(
     token_data: Annotated[TokenData, Depends(verify_token)],
     db_session: Annotated[AsyncSession, Depends(db_session_dependency)],
@@ -81,6 +88,7 @@ async def view_halls(
 
 
 @router.patch("/{hall_id}", response_model=HallOut)
+@log_function(logger)
 async def update_hall(
     hall_id: UUID,
     hall_update: HallUpdate,
@@ -93,6 +101,7 @@ async def update_hall(
 
 
 @router.delete("/{hall_id}", status_code=status.HTTP_204_NO_CONTENT)
+@log_function(logger)
 async def delete_hall(
     hall_id: UUID,
     token_data: Annotated[TokenData, Depends(verify_admin_role)],
