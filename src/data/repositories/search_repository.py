@@ -1,4 +1,5 @@
 from datetime import datetime
+from datetime import timezone
 from uuid import UUID
 
 
@@ -17,6 +18,13 @@ from src.data.models.postgres.hall_facility import HallFacility
 class SearchRepository:
     def __init__(self, session: AsyncSession):
         self.session = session
+
+
+    def _normalize_datetime(self, value: datetime) -> datetime:
+        if value.tzinfo is None:
+            return value
+
+        return value.astimezone(timezone.utc).replace(tzinfo=None)
 
 
     def _calculate_available_slots(
@@ -100,6 +108,9 @@ class SearchRepository:
         Search for available halls based on filters.
         Returns halls with their available time slots within the search window.
         """
+        search_start = self._normalize_datetime(search_start)
+        search_end = self._normalize_datetime(search_end)
+
         # Build hall query
         hall_query = select(Hall).where(Hall.is_active.is_(True))
 

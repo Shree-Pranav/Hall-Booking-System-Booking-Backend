@@ -5,6 +5,7 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.exceptions import ResourceNotFoundError
+from src.data.repositories.booking_repository import BookingRepository
 from src.data.repositories.hall_repository import HallRepository
 from src.schemas.hall_schema import (
     HallCreate,
@@ -19,6 +20,7 @@ from src.schemas.hall_schema import (
 class HallService:
     def __init__(self, db_session: AsyncSession) -> None:
         self.repository = HallRepository(db_session)
+        self.booking_repository = BookingRepository(db_session)
         self.db_session = db_session
 
     async def create_hall(self, hall_in: HallCreate) -> HallOut:
@@ -60,11 +62,12 @@ class HallService:
         return HallOut.model_validate(updated_hall)
 
     async def delete_hall(self, hall_id: UUID) -> None:
-        """Delete a hall."""
+        """Deactivate a hall and cancel its active bookings."""
         hall = await self.repository.get_by_id(hall_id)
         if not hall:
             raise ResourceNotFoundError(f"Hall with ID {hall_id} not found")
 
+        await self.booking_repository.cancel_bookings_for_hall(hall.id)
         await self.repository.delete(hall)
         await self.db_session.commit()
 

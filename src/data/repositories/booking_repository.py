@@ -2,10 +2,12 @@ from __future__ import annotations
 
 
 from datetime import datetime
+from datetime import timezone
 from uuid import UUID
 
 
 from sqlalchemy import select
+from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
@@ -19,6 +21,13 @@ class BookingRepository:
 
     def __init__(self, session: AsyncSession):
         self.session = session
+
+
+    def _normalize_datetime(self, value: datetime) -> datetime:
+        if value.tzinfo is None:
+            return value
+
+        return value.astimezone(timezone.utc).replace(tzinfo=None)
 
 
     def _build_booking_view_payload(
@@ -58,8 +67,12 @@ class BookingRepository:
         )
         return result.scalar_one_or_none()
 
-    async def get_bookings_by_user_id(self, user_id: UUID) -> list[dict]:
-        result = await self.session.execute(
+    async def get_bookings_by_user_id(
+        self,
+        user_id: UUID,
+        include_cancelled: bool = False,
+    ) -> list[dict]:
+        query = (
             select(
                 Booking,
                 User.name.label("user_name"),
@@ -68,8 +81,12 @@ class BookingRepository:
             .join(User, User.id == Booking.user_id)
             .join(Hall, Hall.id == Booking.hall_id)
             .where(Booking.user_id == user_id)
-            .order_by(Booking.start_datetime.desc())
         )
+
+        if not include_cancelled:
+            query = query.where(Booking.status != "cancelled")
+
+        result = await self.session.execute(query.order_by(Booking.start_datetime.desc()))
         rows = result.all()
         return [
             self._build_booking_view_payload(booking, user_name, hall_name)
@@ -100,6 +117,18 @@ class BookingRepository:
         await self.session.refresh(booking)
 
 
+    async def cancel_bookings_for_hall(self, hall_id: UUID) -> None:
+        await self.session.execute(
+            update(Booking)
+            .where(
+                Booking.hall_id == hall_id,
+                Booking.status != "cancelled",
+            )
+            .values(status="cancelled")
+        )
+        await self.session.flush()
+
+
     async def get_overlapping_booking(
         self,
         hall_id: UUID,
@@ -107,10 +136,14 @@ class BookingRepository:
         end_datetime: datetime,
         exclude_booking_id: UUID | None = None,
     ) -> Booking | None:
+        start_datetime = self._normalize_datetime(start_datetime)
+        end_datetime = self._normalize_datetime(end_datetime)
+
         query = select(Booking).where(
             Booking.hall_id == hall_id,
             Booking.start_datetime < end_datetime,
             Booking.end_datetime > start_datetime,
+            Booking.status != "cancelled",
         )
 
 
@@ -129,6 +162,9 @@ class BookingRepository:
         start_datetime: datetime,
         end_datetime: datetime,
     ) -> Booking:
+        start_datetime = self._normalize_datetime(start_datetime)
+        end_datetime = self._normalize_datetime(end_datetime)
+
         booking = Booking(
             user_id=user_id,
             hall_id=hall_id,
@@ -150,6 +186,9 @@ class BookingRepository:
         start_datetime: datetime,
         end_datetime: datetime,
     ) -> Booking:
+        start_datetime = self._normalize_datetime(start_datetime)
+        end_datetime = self._normalize_datetime(end_datetime)
+
         booking.start_datetime = start_datetime
         booking.end_datetime = end_datetime
 

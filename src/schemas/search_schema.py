@@ -1,8 +1,17 @@
 from datetime import datetime
+from datetime import timezone
 from uuid import UUID
 
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_serializer
+
+
+def serialize_utc_datetime(value: datetime) -> str:
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=timezone.utc)
+    else:
+        value = value.astimezone(timezone.utc)
+    return value.isoformat().replace("+00:00", "Z")
 
 
 
@@ -15,11 +24,19 @@ class SearchFilters(BaseModel):
     facility_id: int | None = Field(None, description="Optional facility ID filter")
     facility_name: str | None = Field(None, description="Optional facility name filter")
 
+    @field_serializer("start_datetime", "end_datetime")
+    def serialize_datetimes(self, value: datetime) -> str:
+        return serialize_utc_datetime(value)
+
 
 class TimeSlot(BaseModel):
     start_time: datetime
     end_time: datetime
     duration_minutes: int
+
+    @field_serializer("start_time", "end_time")
+    def serialize_datetimes(self, value: datetime) -> str:
+        return serialize_utc_datetime(value)
 
 
 class SearchResultHall(BaseModel):
