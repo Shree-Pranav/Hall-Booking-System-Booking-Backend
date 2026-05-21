@@ -15,9 +15,7 @@ from src.data.models.postgres.user import User
 
 
 
-
 class BookingRepository:
-
 
     def __init__(self, session: AsyncSession):
         self.session = session
@@ -60,7 +58,6 @@ class BookingRepository:
         )
         return result.scalar_one_or_none()
 
-
     async def get_bookings_by_user_id(self, user_id: UUID) -> list[dict]:
         result = await self.session.execute(
             select(
@@ -96,8 +93,7 @@ class BookingRepository:
             self._build_booking_view_payload(booking, user_name, hall_name)
             for booking, user_name, hall_name in rows
         ]
-
-
+    
     async def cancel_booking(self, booking: Booking) -> None:
         booking.status = "cancelled"
         await self.session.flush()
@@ -156,6 +152,7 @@ class BookingRepository:
     ) -> Booking:
         booking.start_datetime = start_datetime
         booking.end_datetime = end_datetime
+
 
 
         await self.session.flush()
