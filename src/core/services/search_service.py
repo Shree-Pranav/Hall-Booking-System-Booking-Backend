@@ -17,7 +17,6 @@ class SearchService:
     def __init__(self, session: AsyncSession):
         self.search_repository = SearchRepository(session)
 
-
     def _validate_datetime_range(
         self,
         start_datetime: datetime,
@@ -29,7 +28,6 @@ class SearchService:
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Start datetime must be before end datetime",
             )
-
 
     def _validate_half_hour_increment(self, value: datetime):
         if value.minute not in (0, 30) or value.second != 0 or value.microsecond != 0:

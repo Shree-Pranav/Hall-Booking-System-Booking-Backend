@@ -76,7 +76,7 @@ async def view_halls(
 ) -> HallListOut:
     """View all halls (users and admins)."""
     service = HallService(db_session)
-    halls = await service.list_halls()
+    halls = await service.list_halls(include_inactive=token_data.role == "admin")
     return HallListOut(halls=halls, total=len(halls))
 
 
@@ -98,6 +98,6 @@ async def delete_hall(
     token_data: Annotated[TokenData, Depends(verify_admin_role)],
     db_session: Annotated[AsyncSession, Depends(db_session_dependency)],
 ) -> None:
-    """Delete a hall (admin only)."""
+    """Disable a hall (admin only)."""
     service = HallService(db_session)
     await service.delete_hall(hall_id)
