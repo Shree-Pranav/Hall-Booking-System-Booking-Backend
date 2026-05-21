@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from collections.abc import Iterable
 from uuid import UUID
 
 from sqlalchemy import select
@@ -50,31 +49,33 @@ class HallRepository:
         result = await self.db_session.execute(select(Hall).where(Hall.id == hall_id))
         return result.scalar_one_or_none()
 
-    async def get_by_name(self, name: str) -> Hall | None:
-        result = await self.db_session.execute(
-            select(Hall).where(
-                Hall.name == name,
-                Hall.is_active.is_(True),
-            )
-        )
+    async def get_by_name(self, name: str, active_only: bool = True) -> Hall | None:
+        query = select(Hall).where(Hall.name == name)
+        if active_only:
+            query = query.where(Hall.is_active.is_(True))
+
+        result = await self.db_session.execute(query)
         return result.scalar_one_or_none()
 
-    async def list_all(self) -> list[Hall]:
-        result = await self.db_session.execute(
-            select(Hall)
-            .where(Hall.is_active.is_(True))
-            .order_by(Hall.created_at.desc())
-        )
+    async def list_all(self, active_only: bool = True) -> list[Hall]:
+        query = select(Hall).order_by(Hall.created_at.desc())
+        if active_only:
+            query = query.where(Hall.is_active.is_(True))
+
+        result = await self.db_session.execute(query)
         return list(result.scalars().all())
 
-    async def list_all_with_facilities(self) -> list[dict]:
-        result = await self.db_session.execute(
+    async def list_all_with_facilities(self, active_only: bool = True) -> list[dict]:
+        query = (
             select(Hall, HallFacility, Facility)
             .outerjoin(HallFacility, Hall.id == HallFacility.hall_id)
             .outerjoin(Facility, Facility.id == HallFacility.facility_id)
-            .where(Hall.is_active.is_(True))
             .order_by(Hall.created_at.desc(), Facility.name)
         )
+        if active_only:
+            query = query.where(Hall.is_active.is_(True))
+
+        result = await self.db_session.execute(query)
 
         halls: dict[UUID, dict] = {}
         hall_order: list[UUID] = []
@@ -153,7 +154,7 @@ class HallRepository:
         await self.db_session.flush()
 
     async def add_facility_to_hall(self, facility_name: str, hall_name: str) -> dict[str, str]:
-        hall = await self.get_by_name(hall_name)
+        hall = await self.get_by_name(hall_name, active_only=False)
         if not hall:
             raise ResourceNotFoundError(f"Hall with name {hall_name} not found")
 
@@ -187,7 +188,7 @@ class HallRepository:
         return {"message": f"Facility '{facility_name}' added to hall '{hall_name}' successfully"}
 
     async def update_hall_facility(self, hall_name: str, facility_name: str, is_active: bool) -> dict[str, str]:
-        hall = await self.get_by_name(hall_name)
+        hall = await self.get_by_name(hall_name, active_only=False)
         if not hall:
             raise ResourceNotFoundError(f"Hall with name {hall_name} not found")
 

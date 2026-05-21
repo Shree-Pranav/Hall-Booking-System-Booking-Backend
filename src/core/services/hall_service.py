@@ -40,9 +40,11 @@ class HallService:
             raise ResourceNotFoundError(f"Hall with ID {hall_id} not found")
         return HallRead.model_validate(hall)
 
-    async def list_halls(self) -> list[HallRead]:
+    async def list_halls(self, include_inactive: bool = False) -> list[HallRead]:
         """List all halls."""
-        halls = await self.repository.list_all_with_facilities()
+        halls = await self.repository.list_all_with_facilities(
+            active_only=not include_inactive,
+        )
         return [HallRead.model_validate(hall) for hall in halls]
 
     async def update_hall(self, hall_id: UUID, hall_update: HallUpdate) -> HallOut:
@@ -50,6 +52,9 @@ class HallService:
         hall = await self.repository.get_by_id(hall_id)
         if not hall:
             raise ResourceNotFoundError(f"Hall with ID {hall_id} not found")
+
+        if hall_update.is_active is False and hall.is_active:
+            await self.booking_repository.cancel_bookings_for_hall(hall.id)
 
         updated_hall = await self.repository.update(
             hall,
