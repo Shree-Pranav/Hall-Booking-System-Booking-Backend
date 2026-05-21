@@ -5,8 +5,10 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.data.repositories.favorite_repository import FavoriteRepository
+from src.observability.logging.logger import instrument_class_methods
 
 
+@instrument_class_methods
 class FavoriteService:
     def __init__(self, db_session: AsyncSession) -> None:
         self.repository = FavoriteRepository(db_session)

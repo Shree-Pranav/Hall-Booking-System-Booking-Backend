@@ -11,10 +11,12 @@ from src.data.models.postgres.booking import Booking
 from src.data.models.postgres.hall import Hall
 from src.data.models.postgres.facility import Facility
 from src.data.models.postgres.hall_facility import HallFacility
+from src.observability.logging.logger import instrument_class_methods
 
 
 
 
+@instrument_class_methods
 class SearchRepository:
     def __init__(self, session: AsyncSession):
         self.session = session

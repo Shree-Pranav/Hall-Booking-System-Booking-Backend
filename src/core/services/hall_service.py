@@ -7,6 +7,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.core.exceptions import ResourceNotFoundError
 from src.data.repositories.booking_repository import BookingRepository
 from src.data.repositories.hall_repository import HallRepository
+from src.core.services.notification_service import notification_hub
+from src.observability.logging.logger import instrument_class_methods
 from src.schemas.hall_schema import (
     HallCreate,
     HallFacilityCreate,
@@ -17,6 +19,7 @@ from src.schemas.hall_schema import (
 )
 
 
+@instrument_class_methods
 class HallService:
     def __init__(self, db_session: AsyncSession) -> None:
         self.repository = HallRepository(db_session)
@@ -53,7 +56,13 @@ class HallService:
         if not hall:
             raise ResourceNotFoundError(f"Hall with ID {hall_id} not found")
 
+        affected_user_ids: list[UUID] = []
         if hall_update.is_active is False and hall.is_active:
+            affected_user_ids = (
+                await self.booking_repository.get_active_booking_user_ids_for_hall(
+                    hall.id
+                )
+            )
             await self.booking_repository.cancel_bookings_for_hall(hall.id)
 
         updated_hall = await self.repository.update(
@@ -64,6 +73,12 @@ class HallService:
             is_active=hall_update.is_active,
         )
         await self.db_session.commit()
+        if affected_user_ids:
+            await notification_hub.notify_hall_disabled(
+                affected_user_ids,
+                hall.id,
+                hall.name,
+            )
         return HallOut.model_validate(updated_hall)
 
     async def delete_hall(self, hall_id: UUID) -> None:
@@ -72,9 +87,18 @@ class HallService:
         if not hall:
             raise ResourceNotFoundError(f"Hall with ID {hall_id} not found")
 
+        affected_user_ids = (
+            await self.booking_repository.get_active_booking_user_ids_for_hall(hall.id)
+        )
         await self.booking_repository.cancel_bookings_for_hall(hall.id)
         await self.repository.delete(hall)
         await self.db_session.commit()
+        if affected_user_ids:
+            await notification_hub.notify_hall_disabled(
+                affected_user_ids,
+                hall.id,
+                hall.name,
+            )
 
     async def add_facility_to_hall(self, facility_in: HallFacilityCreate) -> dict[str, str]:
         """Add a facility to a hall."""

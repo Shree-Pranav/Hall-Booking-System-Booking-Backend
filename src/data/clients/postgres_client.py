@@ -9,15 +9,18 @@ from sqlalchemy.ext.asyncio import (
 )
 
 from src.config.settings import settings
+from src.observability.logging.logger import get_logger
 
 
 _engine: AsyncEngine | None = None
+logger = get_logger(__name__)
 
 
 async def get_or_create_engine() -> AsyncEngine:
     global _engine
 
     if _engine is None:
+        logger.info("Creating async engine")
         _engine = create_async_engine(
             settings.DATABASE_URL,
             pool_size=10,
@@ -46,16 +49,23 @@ async def get_session_factory() -> async_sessionmaker[AsyncSession]:
         autoflush=False,
         expire_on_commit=False,
     )
+    logger.info("Session factory ready")
     return SessionLocal
 
 
 async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
     """Yields an async database session."""
+    logger.info("Entering get_db_session")
     SessionLocal = await get_session_factory()
     async with SessionLocal() as session:
         try:
+            logger.info("Yielding DB session")
             yield session
             await session.commit()
+            logger.info("DB session committed")
         except Exception:
+            logger.exception("DB session rollback due to exception")
             await session.rollback()
             raise
+        finally:
+            logger.info("Exiting get_db_session")

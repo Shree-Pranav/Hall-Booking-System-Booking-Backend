@@ -3,11 +3,13 @@ from typing import Optional
 from uuid import UUID
 
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
 from src.api.rest.dependencies import get_current_user, get_db_session
+from src.core.exceptions import UnauthorizedException
+from src.observability.logging.logger import get_logger, log_function
 from src.core.services.search_service import SearchService
 from src.schemas.search_schema import SearchResult
 
@@ -16,6 +18,7 @@ router = APIRouter(
     prefix="/search",
     tags=["Search"],
 )
+logger = get_logger(__name__)
 
 
 
@@ -25,6 +28,7 @@ router = APIRouter(
     response_model=SearchResult,
     status_code=status.HTTP_200_OK,
 )
+@log_function(logger)
 async def search_available_halls(
     start_datetime: datetime = Query(..., description="Search window start datetime"),
     end_datetime: datetime = Query(..., description="Search window end datetime"),
@@ -52,11 +56,8 @@ async def search_available_halls(
     """
     search_service = SearchService(session)
 
-    if(current_user is None):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authentication required to perform search",
-        )
+    if current_user is None:
+        raise UnauthorizedException("Authentication required to perform search")
 
     return await search_service.search_available_halls(
         search_start=start_datetime,

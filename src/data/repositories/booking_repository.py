@@ -14,9 +14,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.data.models.postgres.booking import Booking
 from src.data.models.postgres.hall import Hall
 from src.data.models.postgres.user import User
+from src.observability.logging.logger import instrument_class_methods
 
 
 
+@instrument_class_methods
 class BookingRepository:
 
     def __init__(self, session: AsyncSession):
@@ -127,6 +129,18 @@ class BookingRepository:
             .values(status="cancelled")
         )
         await self.session.flush()
+
+
+    async def get_active_booking_user_ids_for_hall(self, hall_id: UUID) -> list[UUID]:
+        result = await self.session.execute(
+            select(Booking.user_id)
+            .where(
+                Booking.hall_id == hall_id,
+                Booking.status != "cancelled",
+            )
+            .distinct()
+        )
+        return list(result.scalars().all())
 
 
     async def get_overlapping_booking(

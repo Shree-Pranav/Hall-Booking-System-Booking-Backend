@@ -6,17 +6,24 @@ from datetime import timezone
 from uuid import UUID
 
 
-from fastapi import HTTPException
-from fastapi import status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
+from src.core.exceptions import (
+    BookingConflictException,
+    BookingForbiddenException,
+    BookingNotFoundException,
+    InvalidBookingDataException,
+    InvalidTokenException,
+)
 from src.data.repositories.booking_repository import BookingRepository
+from src.observability.logging.logger import instrument_class_methods
 
 
 
 
+@instrument_class_methods
 class BookingService:
 
 
@@ -28,10 +35,7 @@ class BookingService:
 
 
         if not user_id_value:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid token payload",
-            )
+            raise InvalidTokenException("Invalid token payload")
 
 
         try:
@@ -39,10 +43,7 @@ class BookingService:
 
 
         except ValueError:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid user ID format in token",
-            )
+            raise InvalidTokenException("Invalid user ID format in token")
 
 
     async def get_my_bookings(self, current_user: dict):
@@ -83,17 +84,11 @@ class BookingService:
 
 
         if not booking:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Booking not found",
-            )
+            raise BookingNotFoundException()
 
 
         if booking.user_id != user_id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="You can only cancel your own booking",
-            )
+            raise BookingForbiddenException("You can only cancel your own booking")
 
         await self.booking_repository.cancel_booking(booking)
         return {"detail": "Booking cancelled successfully"}
@@ -104,10 +99,7 @@ class BookingService:
         end_datetime: datetime,
     ):
         if start_datetime >= end_datetime:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Start time must be before end time",
-            )
+            raise InvalidBookingDataException("Start time must be before end time")
 
         self._validate_half_hour_increment(start_datetime)
         self._validate_half_hour_increment(end_datetime)
@@ -116,9 +108,8 @@ class BookingService:
 
     def _validate_half_hour_increment(self, value: datetime):
         if value.minute not in (0, 30) or value.second != 0 or value.microsecond != 0:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Bookings can only start and end on the hour or half hour",
+            raise InvalidBookingDataException(
+                "Bookings can only start and end on the hour or half hour"
             )
 
 
@@ -128,10 +119,7 @@ class BookingService:
 
     def _validate_not_in_past(self, value: datetime):
         if value < self._current_utc_naive():
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Bookings cannot start in the past",
-            )
+            raise InvalidBookingDataException("Bookings cannot start in the past")
 
 
     def _normalize_datetime(self, value: datetime) -> datetime:
@@ -160,9 +148,8 @@ class BookingService:
 
 
         if overlapping_booking:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="Booking time overlaps with an existing booking for this hall",
+            raise BookingConflictException(
+                "Booking time overlaps with an existing booking for this hall"
             )
 
 
@@ -199,17 +186,11 @@ class BookingService:
 
 
         if not hall:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Hall not found",
-            )
+            raise InvalidBookingDataException("Hall not found")
 
 
         if not hall.is_active:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Hall is inactive",
-            )
+            raise InvalidBookingDataException("Hall is inactive")
 
 
         await self._ensure_no_overlap(
@@ -232,10 +213,7 @@ class BookingService:
 
 
         except IntegrityError:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Start time must be before end time",
-            )
+            raise InvalidBookingDataException("Start time must be before end time")
 
 
     async def update_booking_timing(
@@ -271,24 +249,15 @@ class BookingService:
 
 
         if not booking:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Booking not found",
-            )
+            raise BookingNotFoundException()
 
 
         if booking.user_id != user_id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="You can only update your own booking",
-            )
+            raise BookingForbiddenException("You can only update your own booking")
 
 
         if booking.status == "cancelled":
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Cancelled booking cannot be updated",
-            )
+            raise InvalidBookingDataException("Cancelled booking cannot be updated")
 
 
         await self._ensure_no_overlap(
@@ -313,8 +282,5 @@ class BookingService:
 
 
         except IntegrityError:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Start time must be before end time",
-            )
+            raise InvalidBookingDataException("Start time must be before end time")
         

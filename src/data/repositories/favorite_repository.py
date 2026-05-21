@@ -9,8 +9,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.core.exceptions import ResourceNotFoundError
 from src.data.models.postgres.favorite import Favorite
 from src.data.models.postgres.hall import Hall
+from src.observability.logging.logger import instrument_class_methods
 
 
+@instrument_class_methods
 class FavoriteRepository:
     def __init__(self, db_session: AsyncSession) -> None:
         self.db_session = db_session
